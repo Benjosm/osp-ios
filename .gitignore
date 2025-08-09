@@ -1,0 +1,56 @@
+# Python bytecode and caches
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# IDE specific files
+.vscode/
+.idea/
+*.iml
+
+# User-specific settings and environments
+.env
+.env.*
+venv/
+env/
+*.venv
+ENV/
+env.bak/
+venv.bak/
+
+# Build outputs and logs
+dist/
+build/
+*.egg-info/
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Database files (development)
+*.sqlite3
+*.db
+*.db-journal
+
+# FastAPI specific
+.cache/
+uvicorn.sock
+
+# Alembic (database migrations)
+alembic/versions/
+
+# Testing artifacts
+.pytest_cache/
+htmlcov/
+
+# Poetry lock file
+poetry.lock
+
+# Temporary files
+*.tmp
