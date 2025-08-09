@@ -1,16 +1,36 @@
 import SwiftUI
 import AuthenticationServices
 import UIKit
+import CoreLocation
 
 struct ContentView: View {
     @State private var showAppleSignIn = false
+    @State private var shouldPresentCameraView = false
+    @State private var showLocationPermissionAlert = false
     
     var body: some View {
         VStack {
             Image(systemName: "globe")
                 .imageScale(.large)
                 .foregroundColor(.accentColor)
-            Text("Hello, world!")
+            Text("OSP App")
+                .font(.title)
+                
+            Button("Open Camera") {
+                openCamera()
+            }
+            .padding()
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(8)
+            .alert("Location Access Required", isPresented: $showLocationPermissionAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Settings") {
+                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(settingsURL)
+                    }
+                }
+            }
         }
         .padding()
         .onAppear {
@@ -18,6 +38,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showAppleSignIn) {
             AppleSignInView(isPresented: $showAppleSignIn)
+        }
+        .sheet(isPresented: $shouldPresentCameraView) {
+            CameraViewWrapper()
         }
     }
     
@@ -27,6 +50,23 @@ struct ContentView: View {
         if !hasOnboarded {
             showAppleSignIn = true
         }
+    }
+    
+    private func openCamera() {
+        if LocationPermissionsManager.shared.hasLocationPermission() {
+            shouldPresentCameraView = true
+        } else {
+            showLocationPermissionAlert = true
+        }
+    }
+}
+
+struct CameraViewWrapper: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> CameraInterfaceViewController {
+        return CameraInterfaceViewController()
+    }
+    
+    func updateUIViewController(_ uiViewController: CameraInterfaceViewController, context: Context) {
     }
 }
 
