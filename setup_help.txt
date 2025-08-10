@@ -1,0 +1,27 @@
+iOS Project Setup Instructions
+
+This iOS project requires macOS with Xcode installed to run. The following steps are required:
+
+1. Install Xcode from the Mac App Store
+2. Open Xcode and install additional components if prompted
+3. Install Xcode command-line tools:
+   sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+
+4. Install Ruby (usually pre-installed on macOS, but ensure it's available)
+
+5. Install Bundler:
+   sudo gem install bundler
+
+6. Install CocoaPods:
+   sudo gem install cocoapods
+
+7. Navigate to the project directory and install pods:
+   pod install
+
+8. Open the .xcworkspace file (not .xcodeproj) in Xcode
+
+9. Run tests using:
+   - Xcode UI: Product -> Test
+   - Or command line: xcodebuild test -workspace OspIos.xcodeproj/project.xcworkspace -scheme OspIos -destination 'platform=iOS Simulator,name=iPhone 14'
+
+Note: This project cannot be built or tested on Linux as iOS development requires Apple's official tools which are only available on macOS.
