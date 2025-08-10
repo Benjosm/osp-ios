@@ -5,21 +5,22 @@ import Foundation
 class CameraInterfaceViewController: UIViewController {
     private let cameraSetupManager = CameraSetupManager()
     private let cameraUIManager = CameraUIManager()
+    private let metadataCollector: MetadataCollector
     private let cameraControlHandler: CameraControlHandler
 
     required init?(coder: NSCoder) {
         let locationManager = LocationPermissionsManager.shared.locationManager
         let orientationManager = OrientationSensorManager.shared
-        let metadataCollector = MetadataCollector(locationManager: locationManager, orientationSensorManager: orientationManager)
-        self.cameraControlHandler = CameraControlHandler(metadataCollector: metadataCollector)
+        self.metadataCollector = MetadataCollector(locationManager: locationManager, orientationSensorManager: orientationManager)
+        self.cameraControlHandler = CameraControlHandler(metadataCollector: self.metadataCollector)
         super.init(coder: coder)
     }
 
     override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
         let locationManager = LocationPermissionsManager.shared.locationManager
         let orientationManager = OrientationSensorManager.shared
-        let metadataCollector = MetadataCollector(locationManager: locationManager, orientationSensorManager: orientationManager)
-        self.cameraControlHandler = CameraControlHandler(metadataCollector: metadataCollector)
+        self.metadataCollector = MetadataCollector(locationManager: locationManager, orientationSensorManager: orientationManager)
+        self.cameraControlHandler = CameraControlHandler(metadataCollector: self.metadataCollector)
         super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
     }
 
@@ -44,6 +45,7 @@ class CameraInterfaceViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         cameraSetupManager.startCaptureSession()
+        metadataCollector.startCollection()  // Initialize metadata collection
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -52,7 +54,8 @@ class CameraInterfaceViewController: UIViewController {
     }
 
     @objc func shutterButtonTapped() {
-        cameraControlHandler.capturePhoto()
+        let metadata = metadataCollector.captureOccurred()
+        cameraControlHandler.capturePhoto(withMetadata: metadata)
     }
     
     @objc func cameraSwitchButtonTapped() {

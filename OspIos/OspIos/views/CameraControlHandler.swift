@@ -34,11 +34,26 @@ class CameraControlHandler: NSObject {
         }
     }
 
-    func capturePhoto() {
-        guard let photoOutput = photoOutput else { return }
-
+    func capturePhoto(withMetadata captureMetadata: CaptureMetadata) {
+        // Convert CaptureMetadata to Metadata protocol implementation
+        let dateFormatter = ISO8601DateFormatter()
+        let captureTimeString = dateFormatter.string(from: captureMetadata.captureTime)
+        
+        var location: CLLocation? = nil
+        if let latitude = captureMetadata.latitude, let longitude = captureMetadata.longitude {
+            location = CLLocation(latitude: latitude, longitude: longitude)
+        }
+        
+        let coreMetadata = Metadata(
+            captureTime: captureTimeString,
+            location: location,
+            orientation: captureMetadata.orientation
+        )
+        
         // Get current camera info from setup manager
-        guard let setupManager = cameraSetupManager else { return }
+        guard let photoOutput = photoOutput,
+              let setupManager = cameraSetupManager else { return }
+        
         let isUsingBackCamera = setupManager.getIsUsingBackCamera()
         let currentFlashMode = setupManager.getFlashMode()
         
@@ -56,11 +71,8 @@ class CameraControlHandler: NSObject {
         
         settings.isHighResolutionPhotoEnabled = true
 
-        // Collect metadata at the precise moment of capture
-        let metadata = metadataCollector.collect()
-
         // Create context to pass metadata
-        let context = CaptureContext(metadata: metadata)
+        let context = CaptureContext(metadata: coreMetadata)
         let contextPointer = Unmanaged.passRetained(context).toOpaque()
 
         // Capture the photo with context
