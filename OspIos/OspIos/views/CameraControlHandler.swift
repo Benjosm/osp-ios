@@ -1,6 +1,5 @@
 import AVFoundation
 import CoreLocation
-// Ensure Metadata is available
 import Foundation
 
 struct CapturedMediaItem {
@@ -12,9 +11,20 @@ class CameraControlHandler: NSObject {
     var photoOutput: AVCapturePhotoOutput?
     var cameraSetupManager: CameraSetupManager?
     var cameraUIManager: CameraUIManager?
+    private let metadataCollector: MetadataCollector
+    private let mediaStorageManager: MediaStorageManager
 
-    // Remove locationManager, as metadata now includes location via MetadataCollector
-    
+    /// Initializes the handler with required dependencies including metadata collector.
+    init(metadataCollector: MetadataCollector) {
+        self.metadataCollector = metadataCollector
+        
+        // Initialize media storage manager with file storage
+        let fileStorage = FileSystemStorageManager()
+        self.mediaStorageManager = MediaStorageManager(storageManager: fileStorage)
+        
+        super.init()
+    }
+
     // Context to hold metadata during photo capture
     private class CaptureContext {
         let metadata: Metadata
@@ -47,7 +57,7 @@ class CameraControlHandler: NSObject {
         settings.isHighResolutionPhotoEnabled = true
 
         // Collect metadata at the precise moment of capture
-        let metadata = MetadataCollector.shared.collectMetadata()
+        let metadata = metadataCollector.collect()
 
         // Create context to pass metadata
         let context = CaptureContext(metadata: metadata)
@@ -109,22 +119,17 @@ extension CameraControlHandler: AVCapturePhotoCaptureDelegate {
             metadata = captureContext.metadata
         } else {
             // Fallback if context is missing
-            metadata = Metadata(captureTime: Date(), latitude: nil, longitude: nil, orientation: .unknown)
+            metadata = Metadata(captureTime: ISO8601DateFormatter().string(from: Date()), location: nil, orientation: .unknown)
         }
 
-        // Create captured media item
-        let capturedItem = CapturedMediaItem(
-            imageData: imageData,
-            metadata: metadata
-        )
-        
-        // Add captured item to upload queue with metadata
-        let enqueued = UploadQueueTask.shared.enqueue(media: imageData, metadata: metadata)
-
-        if enqueued {
-            print("Photo captured and added to upload queue - Timestamp: \(metadata.captureTime), Location: \(metadata.latitude),\(metadata.longitude)")
-        } else {
-            print("Photo captured but not added to upload queue (possible duplicate)")
+        // Store media locally before enqueuing to upload queue
+        mediaStorageManager.storeMedia(data: imageData, mediaType: .image, metadata: metadata) { [weak self] result in
+            switch result {
+            case .success(let url):
+                print("Photo stored at \(url) and added to upload queue")
+            case .failure(let error):
+                print("Failed to store photo: \(error)")
+            }
         }
     }
     
