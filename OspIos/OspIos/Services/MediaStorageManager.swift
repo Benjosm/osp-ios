@@ -70,14 +70,8 @@ class MediaStorageManager {
             return
         }
 
-        // Read the saved data back
-        guard let savedData = try? Data(contentsOf: fileURL) else {
-            completion(.failure(.storageFailed(NSError(domain: "MediaStorageManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to read saved media"]))))
-            return
-        }
-
-        // Add to upload queue with metadata
-        let success = UploadQueueTask.shared.enqueue(media: savedData, metadata: metadata)
+        // Add to upload queue with metadata using original data
+        let success = UploadQueueTask.shared.enqueue(media: data, metadata: metadata)
         if !success {
             print("Warning: Failed to enqueue media for upload")
         }

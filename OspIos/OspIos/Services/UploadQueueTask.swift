@@ -37,18 +37,31 @@ extension Metadata: Codable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(captureTime, forKey: .captureTime)
-        try container.encodeIfPresent(latitude, forKey: .latitude)
-        try container.encodeIfPresent(longitude, forKey: .longitude)
+        
+        if let location = self.location {
+            try container.encode(location.coordinate.latitude, forKey: .latitude)
+            try container.encode(location.coordinate.longitude, forKey: .longitude)
+        } else {
+            try container.encodeNil(forKey: .latitude)
+            try container.encodeNil(forKey: .longitude)
+        }
+        
         try container.encode(orientation.rawValue, forKey: .orientation)
     }
     
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        captureTime = try values.decode(Date.self, forKey: .captureTime)
-        latitude = try values.decodeIfPresent(Double.self, forKey: .latitude)
-        longitude = try values.decodeIfPresent(Double.self, forKey: .longitude)
+        captureTime = try values.decode(String.self, forKey: .captureTime)
+        
+        if let latitude = try values.decodeIfPresent(Double.self, forKey: .latitude),
+           let longitude = try values.decodeIfPresent(Double.self, forKey: .longitude) {
+            self.location = CLLocation(latitude: latitude, longitude: longitude)
+        } else {
+            self.location = nil
+        }
+        
         let orientationRawValue = try values.decode(Int.self, forKey: .orientation)
-        orientation = UIDeviceOrientation(rawValue: orientationRawValue) ?? .unknown
+        self.orientation = UIDeviceOrientation(rawValue: orientationRawValue) ?? .unknown
     }
 }
 
