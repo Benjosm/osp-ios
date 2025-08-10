@@ -13,6 +13,7 @@ enum MediaStorageError: Error {
 /// Manages physical file storage operations in sandbox
 protocol StorageManagerProtocol {
     func saveMedia(data: Data, mediaType: MediaType) throws -> URL
+    func storeMediaLocally(data: Data, mimeType: String) -> URL?
 }
 
 /// Coordinates queued media uploads
@@ -27,38 +28,60 @@ typealias UploadQueueManager = UploadQueueManagerProtocol
 /// Manages temporary storage of media assets in the app sandbox before upload
 class MediaStorageManager {
     private let storageManager: StorageManager
-    private let uploadQueue: UploadQueueManager
-    
+
     /// Designated initializer
     /// - Parameters:
     ///   - storageManager: Handles low-level file storage operations
-    ///   - uploadQueue: Coordinates media upload tasks
-    init(storageManager: StorageManager, uploadQueue: UploadQueueManager) {
+    init(storageManager: StorageManager) {
         self.storageManager = storageManager
-        self.uploadQueue = uploadQueue
     }
-    
+
+    /// Converts MediaType to MIME type string
+    /// - Parameter mediaType: The media type to convert
+    /// - Returns: MIME type string, or nil if conversion fails
+    private func getMimeType(from mediaType: MediaType) -> String? {
+        switch mediaType {
+        case .image:
+            return "image/jpeg"
+        case .video:
+            return "video/mp4"
+        }
+    }
+
     /// Stores media data in sandbox storage and queues for upload
     /// - Parameters:
     ///   - data: Media content to persist
     ///   - mediaType: Type of media being stored (image/video)
+    ///   - metadata: Metadata associated with the media capture
     ///   - completion: Called with URL of stored media or error
     ///
     /// This implementation:
     /// 1. Saves media using StorageManager (sandbox location)
-    /// 2. Adds file to upload queue upon successful storage
-    /// 3. Returns file URL for upload reference
-    func storeMedia(data: Data, mediaType: MediaType, completion: @escaping (Result<URL, MediaStorageError>) -> Void) {
-        do {
-            // Store media in sandbox storage
-            let fileURL = try storageManager.saveMedia(data: data, mediaType: mediaType)
-            
-            // Register with upload system
-            uploadQueue.addMedia(for: fileURL)
-            
-            completion(.success(fileURL))
-        } catch {
-            completion(.failure(.storageFailed(error)))
+    /// 2. Reads the saved data and enqueues it with metadata to UploadQueueTask
+    /// 3. Returns file URL for reference
+    func storeMedia(data: Data, mediaType: MediaType, metadata: Metadata, completion: @escaping (Result<URL, MediaStorageError>) -> Void) {
+        guard let mimeType = getMimeType(from: mediaType) else {
+            completion(.failure(.invalidMediaType))
+            return
         }
+
+        guard let fileURL = storageManager.storeMediaLocally(data: data, mimeType: mimeType) else {
+            completion(.failure(.storageFailed(NSError(domain: "MediaStorageManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to store media locally"]))))
+            return
+        }
+
+        // Read the saved data back
+        guard let savedData = try? Data(contentsOf: fileURL) else {
+            completion(.failure(.storageFailed(NSError(domain: "MediaStorageManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to read saved media"]))))
+            return
+        }
+
+        // Add to upload queue with metadata
+        let success = UploadQueueTask.shared.enqueue(media: savedData, metadata: metadata)
+        if !success {
+            print("Warning: Failed to enqueue media for upload")
+        }
+
+        completion(.success(fileURL))
     }
 }
