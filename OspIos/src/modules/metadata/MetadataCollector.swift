@@ -71,6 +71,25 @@ class MetadataCollector: NSObject, CLLocationManagerDelegate {
             orientation: photoOrientation // Use passed-in orientation
         )
     }
+    
+    // MARK: - Upload-Ready Metadata Collection
+    /// Collects metadata for a given media ID and returns it as a string dictionary suitable for upload
+    func collectMetadata(forMediaId mediaId: String, orientation: Int) -> [String: String] {
+        let metadata = collectMetadata(photoOrientation: orientation)
+        
+        var result: [String: String] = [:]
+        result["mediaId"] = mediaId
+        result["captureTime"] = "\(metadata.captureTime.timeIntervalSince1970)"
+        result["orientation"] = "\(metadata.orientation)"
+        if let lat = metadata.latitude {
+            result["latitude"] = "\(lat)"
+        }
+        if let lon = metadata.longitude {
+            result["longitude"] = "\(lon)"
+        }
+        
+        return result
+    }
 
     // MARK: - Location Manager Delegate
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -88,7 +107,7 @@ class MetadataCollector: NSObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Location manager failed: $error)")
+        print("Location manager failed: \(error)")
         // Signal the semaphore even on failure to prevent blocking
         locationSemaphore?.signal()
     }
