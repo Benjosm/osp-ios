@@ -7,12 +7,16 @@ struct CapturedMediaItem {
     let metadata: Metadata
 }
 
+// Completion handler type for photo capture and storage
+typealias PhotoCaptureCompletion = (Bool, String?) -> Void
+
 class CameraControlHandler: NSObject {
     var photoOutput: AVCapturePhotoOutput?
     var cameraSetupManager: CameraSetupManager?
     var cameraUIManager: CameraUIManager?
     private let metadataCollector: MetadataCollector
     private let mediaStorageManager: MediaStorageManager
+    private var captureCompletionHandler: PhotoCaptureCompletion?
 
     /// Initializes the handler with required dependencies including metadata collector.
     init(metadataCollector: MetadataCollector) {
@@ -28,13 +32,15 @@ class CameraControlHandler: NSObject {
     // Context to hold metadata during photo capture
     private class CaptureContext {
         let metadata: Metadata
+        let completionHandler: PhotoCaptureCompletion?
         
-        init(metadata: Metadata) {
+        init(metadata: Metadata, completionHandler: PhotoCaptureCompletion? = nil) {
             self.metadata = metadata
+            self.completionHandler = completionHandler
         }
     }
 
-    func capturePhoto(withMetadata captureMetadata: CaptureMetadata) {
+    func capturePhoto(withMetadata captureMetadata: CaptureMetadata, completionHandler: PhotoCaptureCompletion? = nil) {
         // Convert CaptureMetadata to Metadata protocol implementation
         let dateFormatter = ISO8601DateFormatter()
         let captureTimeString = dateFormatter.string(from: captureMetadata.captureTime)
@@ -52,7 +58,10 @@ class CameraControlHandler: NSObject {
         
         // Get current camera info from setup manager
         guard let photoOutput = photoOutput,
-              let setupManager = cameraSetupManager else { return }
+              let setupManager = cameraSetupManager else {
+            completionHandler?(false, nil)
+            return
+        }
         
         let isUsingBackCamera = setupManager.getIsUsingBackCamera()
         let currentFlashMode = setupManager.getFlashMode()
@@ -71,8 +80,8 @@ class CameraControlHandler: NSObject {
         
         settings.isHighResolutionPhotoEnabled = true
 
-        // Create context to pass metadata
-        let context = CaptureContext(metadata: coreMetadata)
+        // Create context to pass metadata and completion handler
+        let context = CaptureContext(metadata: coreMetadata, completionHandler: completionHandler)
         let contextPointer = Unmanaged.passRetained(context).toOpaque()
 
         // Capture the photo with context
@@ -134,13 +143,24 @@ extension CameraControlHandler: AVCapturePhotoCaptureDelegate {
             metadata = Metadata(captureTime: ISO8601DateFormatter().string(from: Date()), location: nil, orientation: .unknown)
         }
 
+        // Retrieve completion handler from context if available
+        let completionHandler: PhotoCaptureCompletion? = context.flatMap { ctx in
+            let captureContext = Unmanaged<CaptureContext>.fromOpaque(ctx).takeRetainedValue()
+            let handler = captureContext.completionHandler
+            // Clean up the context
+            _ = Unmanaged<CaptureContext>.fromOpaque(ctx).takeRetainedValue()
+            return handler
+        }
+
         // Store media locally before enqueuing to upload queue
         mediaStorageManager.storeMedia(data: imageData, mediaType: .image, metadata: metadata) { [weak self] result in
             switch result {
             case .success(let url):
                 print("Photo stored at \(url) and added to upload queue")
+                completionHandler?(true, url.lastPathComponent)
             case .failure(let error):
                 print("Failed to store photo: \(error)")
+                completionHandler?(false, nil)
             }
         }
     }
