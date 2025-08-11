@@ -26,17 +26,20 @@ class MediaUploadCoordinator {
     private let storageResolver: MediaStorageResolving
     private let metadataCollector: MetadataCollector
     private let uploadManager: UploadManager
+    private let trustScoreCalculator: TrustScoreCalculationTask
     private weak var presentingViewController: UIViewController?
 
     init(
         storageResolver: MediaStorageResolving = LocalMediaStorageTask(),
         metadataCollector: MetadataCollector = MetadataCollector(),
         uploadManager: UploadManager = UploadManager(),
+        trustScoreCalculator: TrustScoreCalculationTask = TrustScoreCalculationTask(),
         presentingViewController: UIViewController? = nil
     ) {
         self.storageResolver = storageResolver
         self.metadataCollector = metadataCollector
         self.uploadManager = uploadManager
+        self.trustScoreCalculator = trustScoreCalculator
         self.presentingViewController = presentingViewController
     }
 
@@ -69,11 +72,8 @@ class MediaUploadCoordinator {
             metadata: metadata
         )
 
-        // Instantiate confirmation presenter
-        let confirmationPresenter = presentingViewController.map { UploadConfirmationPresenter(presentingViewController: $0) }
-
-        // Show upload confirmation UI immediately
-        confirmationPresenter?.showUploadConfirmation(for: mediaId, progress: 0.0)
+        // Record start time for upload duration measurement
+        let uploadStartTime = Date()
 
         // Start upload with progress and completion handling
         uploadManager.upload(item: uploadItem, onProgress: { progress in
@@ -81,20 +81,31 @@ class MediaUploadCoordinator {
                 // Update progress in UI if valid
                 if progress >= 0.0 && progress <= 1.0 {
                     onProgress(progress)
-                    confirmationPresenter?.showUploadConfirmation(for: mediaId, progress: progress)
                 } else {
                     // Error case
                     onProgress(progress)
-                    confirmationPresenter?.showError()
                     onCompletion?(false)
                 }
             }
         }, onCompletion: { success, error in
             DispatchQueue.main.async {
                 if success {
-                    confirmationPresenter?.showSuccess()
-                } else {
-                    confirmationPresenter?.showError()
+                    // Calculate upload time
+                    let uploadTime = Date().timeIntervalSince(uploadStartTime)
+                    
+                    // Calculate trust score
+                    let trustScore = self.trustScoreCalculator.calculateTrustScore(forMediaId: mediaId)
+                    
+                    // Present confirmation view if we have a presenting view controller
+                    if let presentingVC = self.presentingViewController {
+                        let confirmationView = ConfirmationView(
+                            trustScore: trustScore,
+                            uploadTime: uploadTime
+                        )
+                        let hostingController = UIHostingController(rootView: confirmationView)
+                        hostingController.modalPresentationStyle = .fullScreen
+                        presentingVC.present(hostingController, animated: true)
+                    }
                 }
                 onCompletion?(success)
             }

@@ -1,4 +1,5 @@
 import UIKit
+import SwiftUI
 
 class UploadConfirmationPresenter {
     private weak var presentingViewController: UIViewController?
@@ -21,8 +22,8 @@ class UploadConfirmationPresenter {
             progressBar.progressViewStyle = .default
             alert.view.addSubview(progressBar)
             
-            // Placeholder for progress bar layout; in practice, you'd use constraints
-            // For UIAlertController, we use a simple spacer workaround
+            // Placeholder for progress bar layout; in practice, you'd use a simple spacer workaround
+            // For UIAlertController, we use a simple layout with accessoryView
             alert.setValue(progressBar, forKey: "accessoryView")
             
             presentingViewController?.present(alert, animated: true, completion: nil)
@@ -43,14 +44,13 @@ class UploadConfirmationPresenter {
         progressDialog = nil
     }
     
-    func showSuccess() {
-        guard let alert = progressDialog else { return }
-        alert.title = "Upload Successful"
-        alert.message = "Your media has been uploaded successfully."
-        alert.setValue(nil, forKey: "accessoryView") // Remove progress bar
-        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-            self.dismissConfirmation()
-        })
+    func showSuccess(trustScore: Double, uploadTime: TimeInterval) {
+        dismissConfirmation() // Dismiss current progress dialog
+        
+        let confirmationView = ConfirmationView(trustScore: Int(trustScore), uploadTime: uploadTime)
+        let hostingController = UIHostingController(rootView: confirmationView)
+        hostingController.modalPresentationStyle = .automatic
+        presentingViewController?.present(hostingController, animated: true)
     }
     
     func showError() {
