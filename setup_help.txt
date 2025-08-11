@@ -24,4 +24,12 @@ This iOS project requires macOS with Xcode installed to run. The following steps
    - Xcode UI: Product -> Test
    - Or command line: xcodebuild test -workspace OspIos.xcodeproj/project.xcworkspace -scheme OspIos -destination 'platform=iOS Simulator,name=iPhone 14'
 
-Note: This project cannot be built or tested on Linux as iOS development requires Apple's official tools which are only available on macOS.
+Important Note:
+This project cannot be built or tested on Linux or in standard Docker containers. iOS development requires Apple's official tools (Xcode, iOS Simulator, etc.), which are only available on macOS due to licensing and technical restrictions.
+
+Development Options on Non-macOS Systems:
+- Use cloud-based Mac services (e.g., MacStadium, MacInCloud)
+- Set up CI/CD using GitHub Actions with macOS runners
+- Use virtualized macOS in Docker (e.g., sickcodes/Docker-OSX), though this has legal and performance considerations
+
+The current Linux Docker environment lacks Xcode and Swift build tools, so project tests cannot be executed here. Setup must be completed on macOS.
